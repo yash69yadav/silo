@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Diagnostic test runs & temporary scripts
+diagnose.js
+test_*.js
+*.log
+
+# Screenshots from headless testing
+actual_screenshot.png
+screenshot_*.png
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor folders
+.vscode/
+.idea/

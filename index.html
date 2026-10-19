@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUBTERRANEAN SILO 18 // Interactive Vertical Cutaway & Telemetry HUD</title>
+  <meta name="description" content="Cinematic scroll-driven subterranean silo exploration experience inspired by Apple TV's Silo. Descend 26 levels down to the geothermal core with real-time telemetry, procedural audio, and atmospheric particle simulation.">
+  <meta name="keywords" content="Silo, Subterranean Silo, sci-fi interactive website, vertical scroll animation, scroll-driven UI, telemetry HUD">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-surface">
+  <!-- CRT Scanlines and Grain Overlay (Toggleable) -->
+  <div id="crt-overlay" class="crt-overlay" aria-hidden="true"></div>
+  <div id="blueprint-grid" class="blueprint-grid" aria-hidden="true"></div>
+
+  <!-- Audio Prompt Banner (Appears on first visit to enable sound) -->
+  <div id="audio-banner" class="audio-banner">
+    <div class="audio-banner-content">
+      <div class="audio-pulse-icon">🔊</div>
+      <div class="audio-banner-text">
+        <strong>ENABLE CINEMATIC SUBTERRANEAN AUDIO</strong>
+        <span>Procedural atmospheric soundscape & depth audio synthesis</span>
+      </div>
+    </div>
+    <div class="audio-banner-actions">
+      <button id="btn-enable-audio" class="btn-hud btn-glow-cyan">ENABLE AUDIO</button>
+      <button id="btn-dismiss-audio" class="btn-hud btn-ghost">DISMISS</button>
+    </div>
+  </div>
+
+  <!-- FIXED HUD HEADER -->
+  <header class="hud-header" id="hud-header">
+    <div class="hud-header-left">
+      <div class="silo-brand">
+        <div class="silo-insignia">
+          <svg viewBox="0 0 40 40" class="insignia-svg">
+            <polygon points="20,2 38,11 38,29 20,38 2,29 2,11" fill="none" stroke="currentColor" stroke-width="2"/>
+            <circle cx="20" cy="20" r="10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3, 2"/>
+            <polygon points="20,13 25,23 15,23" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">SILO 18 <span class="badge-tag">SECTOR FEED</span></div>
+          <div class="brand-subtitle">
+            <span class="status-pip pulsing" id="network-pip"></span>
+            <span id="central-command-text">CENTRAL COMMAND // LIVE TELEMETRY</span>
+          </div>
+        </div>
+      </div>
+      <div class="silo-time-box">
+        <span class="label-xs">SOL CYCLE</span>
+        <span class="value-mono" id="hud-clock">DAY 14,291 • 11:58:36</span>
+      </div>
+    </div>
+
+    <!-- Center Active Sector Badge -->
+    <div class="hud-header-center">
+      <div class="sector-badge-pill" id="sector-pill">
+        <span class="pill-pip"></span>
+        <span class="pill-label" id="sector-pill-label">L0 • SURFACE HATCH & AIRLOCK</span>
+      </div>
+      <div class="elevation-bar-wrap">
+        <div class="elevation-bar-track">
+          <div class="elevation-bar-fill" id="hud-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Telemetry Readouts -->
+    <div class="hud-header-right">
+      <!-- Depth Gauge -->
+      <div class="telemetry-box" id="box-depth">
+        <div class="telem-label">DEPTH</div>
+        <div class="telem-val-wrap">
+          <span class="telem-val" id="hud-depth">-0m</span>
+          <span class="telem-target">/ -1,440m</span>
+        </div>
+      </div>
+
+      <!-- Level Marker -->
+      <div class="telemetry-box" id="box-level">
+        <div class="telem-label">ACTIVE LEVEL</div>
+        <div class="telem-val-wrap">
+          <span class="telem-val highlight-amber" id="hud-level">LEVEL 00</span>
+        </div>
+      </div>
+
+      <!-- Core Temperature -->
+      <div class="telemetry-box" id="box-temp">
+        <div class="telem-label">CHAMBER TEMP</div>
+        <div class="telem-val-wrap">
+          <span class="telem-val" id="hud-temp">-14°C</span>
+        </div>
+      </div>
+
+      <!-- O2 Purity -->
+      <div class="telemetry-box" id="box-o2">
+        <div class="telem-label">O₂ PURITY</div>
+        <div class="telem-val-wrap">
+          <span class="telem-val" id="hud-o2">21.0%</span>
+        </div>
+      </div>
+
+      <!-- Header Controls: Sound, Alarm, Patrol, 360 Orbit -->
+      <div class="hud-actions">
+        <button id="btn-audio-toggle" class="icon-btn" title="Toggle Subterranean Soundscape (M)">
+          <div class="audio-eq-bars" id="eq-bars">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="btn-text" id="audio-btn-label">MUTED</span>
+        </button>
+
+        <button id="btn-360-toggle" class="icon-btn active" title="Toggle 360° Scroll Orbit (O)">
+          <span class="icon-360">🔄</span>
+          <span class="btn-text" id="btn-360-label">360° [000°]</span>
+        </button>
+
+        <button id="btn-patrol" class="icon-btn" title="Automatic Elevator Patrol Mode (Space)">
+          <span class="icon-patrol">▶</span>
+          <span class="btn-text">AUTO PATROL</span>
+        </button>
+
+        <button id="btn-emergency" class="icon-btn alert-toggle-btn" title="Toggle Emergency Containment Protocol (E)">
+          <span class="alert-icon">⚠️</span>
+          <span class="btn-text">LOCKDOWN</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- EMERGENCY BANNER (Hidden by default) -->
+  <div id="emergency-banner" class="emergency-banner">
+    <div class="emergency-inner">
+      <span class="siren-light"></span>
+      <span class="emergency-text">⚠️ EMERGENCY LOCKDOWN ACTIVE // ALL AIRLOCKS SEALED // SECTOR QUARANTINE ENFORCED // DEFENSE GRIDS CHARGING ⚠️</span>
+      <span class="siren-light"></span>
+    </div>
+  </div>
+
+  <!-- MAIN SCROLL RUNWAY -->
+  <!-- The body scrolls through this 600vh runway, driving all camera, elevation & telemetry transforms -->
+  <main class="silo-scroll-track" id="silo-track">
+    <!-- PINNED 100vh VIEWPORT STAGE -->
+    <div class="pinned-viewport" id="pinned-viewport">
+      
+      <!-- LAYER 1: Deep Rock Strata & Blueprint Cad Grid Background -->
+      <div class="strata-background" id="strata-bg"></div>
+
+      <!-- LAYER 2: Canvas Environmental Atmospheric Particles -->
+      <canvas id="atmosphere-canvas" class="atmosphere-canvas"></canvas>
+
+      <!-- LAYER 3: Colossal Subterranean Silo Cutaway Artwork Stage with 360° Perspective -->
+      <div class="silo-artwork-container" id="silo-artwork-container">
+        
+        <!-- 3D Holographic Bulkhead Containment Rings circling the Silo Column in Perspective -->
+        <div class="silo-rings-stage" id="silo-rings-stage" aria-hidden="true">
+          <div class="silo-ring-3d ring-0" style="top: 8%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L0 • AIRLOCK RING</span>
+          </div>
+          <div class="silo-ring-3d ring-1" style="top: 26%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L3 • RESIDENTIAL RING</span>
+          </div>
+          <div class="silo-ring-3d ring-2" style="top: 42%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L7 • HYDROPONIC RING</span>
+          </div>
+          <div class="silo-ring-3d ring-3" style="top: 56%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L14 • CRYO DATA RING</span>
+          </div>
+          <div class="silo-ring-3d ring-4" style="top: 72%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L19 • FOUNDRY RING</span>
+          </div>
+          <div class="silo-ring-3d ring-5" style="top: 89%;">
+            <div class="ring-orbit-disc"></div>
+            <div class="ring-radar-sweep"></div>
+            <span class="ring-label">L24 • MAGMA CORE RING</span>
+          </div>
+        </div>
+
+        <!-- Interactive Silo 3D Art Wrapper (Rotates in 360° on scroll & drag) -->
+        <div class="silo-art-wrapper" id="silo-art-wrapper">
+          <!-- FRONT FACE: High-Res Subterranean Silo Cutaway Illustration -->
+          <img 
+            src="assets/silo_concept.jpg" 
+            alt="Subterranean Silo Cutaway Architectural Blueprint" 
+            class="silo-illustration" 
+            id="silo-image" 
+            loading="eager"
+            fetchpriority="high"
+          />
+
+          <!-- 3D Structural Titanium Flanges (Creates solid monolithic cylinder illusion in 360°) -->
+          <div class="silo-hull-flange hull-left" aria-hidden="true">
+            <div class="hull-hazard-strip"></div>
+            <div class="hull-conduit-lines"></div>
+            <div class="hull-beacons"><span></span><span></span><span></span></div>
+          </div>
+          <div class="silo-hull-flange hull-right" aria-hidden="true">
+            <div class="hull-hazard-strip"></div>
+            <div class="hull-conduit-lines"></div>
+            <div class="hull-beacons"><span></span><span></span><span></span></div>
+          </div>
+
+          <!-- BACK FACE: Reverse 3D Tactical CAD Architectural Blueprint (Visible at 180° rotation) -->
+          <div class="silo-backface-schematic" id="silo-backface" aria-hidden="true">
+            <div class="backface-blueprint-grid"></div>
+            <div class="backface-header">
+              <div class="blueprint-badge">TOP SECRET // COUNCIL ARCHIVE</div>
+              <div class="blueprint-title">SILO 18 • REVERSE STRUCTURAL SCANNER • 360° CAD</div>
+            </div>
+            <div class="blueprint-vector-shaft">
+              <div class="blueprint-level-marker" style="top: 8%;">
+                <span class="b-lvl">L00</span>
+                <span class="b-name">PRIMARY BLAST DOORS // AIR PURIFIER ARRAY</span>
+                <span class="b-stat">SEAL: 100%</span>
+              </div>
+              <div class="blueprint-level-marker" style="top: 26%;">
+                <span class="b-lvl">L03</span>
+                <span class="b-name">HABITATION MODULE 4B // 2,400 CITIZENS</span>
+                <span class="b-stat">PODS: ACTIVE</span>
+              </div>
+              <div class="blueprint-level-marker" style="top: 42%;">
+                <span class="b-lvl">L07</span>
+                <span class="b-name">SPIRAL HYDROPONIC DOMES // AERO-MIST</span>
+                <span class="b-stat">YIELD: 92%</span>
+              </div>
+              <div class="blueprint-level-marker" style="top: 56%;">
+                <span class="b-lvl">L14</span>
+                <span class="b-name">AIR-GAPPED DATA VAULT // 88 PETABYTES</span>
+                <span class="b-stat">ENCRYPTION: MAX</span>
+              </div>
+              <div class="blueprint-level-marker" style="top: 72%;">
+                <span class="b-lvl">L19</span>
+                <span class="b-name">HEAVY INDUSTRIAL FOUNDRY // 80T GANTRY CRANE</span>
+                <span class="b-stat">HEAT: NOMINAL</span>
+              </div>
+              <div class="blueprint-level-marker" style="top: 89%;">
+                <span class="b-lvl">L24</span>
+                <span class="b-name">MAGMA GEOTHERMAL BASIN // 4.8 GW GENERATORS</span>
+                <span class="b-stat">TURBINES: ONLINE</span>
+              </div>
+              <div class="blueprint-central-shaft"></div>
+              <div class="blueprint-scanner-beam"></div>
+            </div>
+            <div class="backface-footer">
+              <span>BEDROCK SEISMIC STABILIZERS: ARMED</span>
+              <span>GEOTHERMAL HEAT LOOP: BALANCED</span>
+            </div>
+          </div>
+
+          <!-- Silo Elevator Cabin Animation with 3D Spotlight (travels down central shaft) -->
+          <div class="elevator-cabin" id="elevator-cabin" style="top: 2%;">
+            <div class="cabin-body">
+              <div class="cabin-light"></div>
+              <div class="cabin-label">CAR #1</div>
+            </div>
+            <div class="cabin-cable"></div>
+            <div class="cabin-spotlight"></div>
+          </div>
+
+          <!-- Interactive Hotspot Pins on the Illustration -->
+          <!-- Pin 1: Surface Hatch -->
+          <button class="hotspot-pin" style="top: 8%; left: 50%;" data-sector="0" data-title="Surface Airlock Blast Dome" data-desc="Heavy fortified blast door sealing Silo 18 from the toxic wasteland exterior. Optical sensors continuously sweep the barren crater." aria-label="Inspect Surface Airlock">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L0 • AIRLOCK</span>
+          </button>
+
+          <!-- Pin 2: Upper Residential Catwalk -->
+          <button class="hotspot-pin" style="top: 26%; left: 32%;" data-sector="1" data-title="Residential Module 4B" data-desc="Stacked modular living pods accommodating 2,400 denizens with warm 3000K incandescent filament lighting, dining common halls, and perimeter catwalks." aria-label="Inspect Residential Living Pods">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L3 • RESIDENTIAL</span>
+          </button>
+
+          <!-- Pin 3: Biospheric Hydroponic Rings -->
+          <button class="hotspot-pin" style="top: 42%; left: 66%;" data-sector="2" data-title="Aeroponic Terraced Farms" data-desc="Circular biospheric crop terraces using automated ultrasonic misting systems and daylight simulation LED rings, supplying 92% of Silo caloric demand." aria-label="Inspect Biospheric Farms">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L7 • BIO-TERRACE</span>
+          </button>
+
+          <!-- Pin 4: Cold Server Mainframe -->
+          <button class="hotspot-pin" style="top: 56%; left: 35%;" data-sector="3" data-title="Cryogenic Server Databanks" data-desc="Sub-zero archival mainframe chambers containing 88 Petabytes of air-gapped classified historical records, Council logs, and AI maintenance subroutines." aria-label="Inspect Data Vaults">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L14 • DATA VAULT</span>
+          </button>
+
+          <!-- Pin 5: Heavy Industry Foundry Cranes -->
+          <button class="hotspot-pin" style="top: 72%; left: 68%;" data-sector="4" data-title="Gantry Foundry & Fabrication" data-desc="Industrial heavy fabrication foundries, 80-ton gantry cranes, spare part casting, steel scaffolding, and hydraulic metal recycling chutes." aria-label="Inspect Heavy Industry">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L19 • FOUNDRY</span>
+          </button>
+
+          <!-- Pin 6: Geothermal Reactor Core -->
+          <button class="hotspot-pin" style="top: 89%; left: 50%;" data-sector="5" data-title="Geothermal Magma Reactor" data-desc="Colossal molten magma energy basin with 4.8 GW power turbines, steam heat exchangers, and seismic bedrock dampers anchoring Silo 18." aria-label="Inspect Geothermal Reactor Core">
+            <span class="pin-pulse"></span>
+            <span class="pin-ring"></span>
+            <span class="pin-tag">L24 • MAGMA CORE</span>
+          </button>
+
+        </div>
+
+        <!-- High-Speed Scroll Descent Streaks -->
+        <div class="descent-streaks-container" id="descent-streaks" aria-hidden="true"></div>
+
+        <!-- Depth Gauge Reticle Line with 360° Gyroscope Compass Dial -->
+        <div class="reticle-horizon" id="reticle-horizon">
+          <div class="reticle-line left-line"></div>
+          <div class="reticle-target">
+            <div class="reticle-gyro-360" id="reticle-gyro" title="360° Orbital Gyroscope Compass">
+              <div class="gyro-ring-outer"></div>
+              <div class="gyro-ring-inner"></div>
+              <div class="gyro-needle" id="gyro-needle"></div>
+              <span class="gyro-cardinal n">N</span>
+              <span class="gyro-cardinal s">S</span>
+            </div>
+            <div class="reticle-text-group">
+              <span class="reticle-crosshair">+</span>
+              <span class="reticle-depth-readout" id="reticle-depth">-0m</span>
+              <span class="reticle-bearing-readout" id="reticle-bearing">360° AZIMUTH • 000°</span>
+            </div>
+          </div>
+          <div class="reticle-line right-line"></div>
+        </div>
+
+        <!-- 360° Drag & Orbit Interaction Floating Hint Pill -->
+        <div class="orbit-hint-pill" id="orbit-hint-pill" title="Click & drag anywhere to orbit 360°">
+          <span class="hint-icon">🔄</span>
+          <span class="hint-text">SCROLL TO DIVE 360° // DRAG TO ORBIT</span>
+        </div>
+      </div>
+
+      <!-- LAYER 4: Contextual Glassmorphic Sector Inspection Cards -->
+      <section class="glass-card-stage" id="glass-card-stage" aria-live="polite">
+        
+        <!-- CARD 0: SURFACE HATCH & AIRLOCK -->
+        <article class="sector-card active" id="card-sector-0" data-sector-index="0">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent ash"></span>
+                <span>SECTOR 01 // UPPER APEX</span>
+              </div>
+              <div class="card-level-badge">0m • LEVEL 00</div>
+            </div>
+            
+            <h1 class="card-title">SURFACE HATCH & AIRLOCK</h1>
+            <p class="card-desc">
+              Desolate, toxic wasteland exterior. Fortified airlock blast dome, optical sensors, automated cleaning scrubbers, and surface rover transport bay.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">CONTAINMENT LOGS</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <!-- Tab 1: Telemetry Grid -->
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">EXTERNAL TOXINS</span>
+                  <span class="stat-value alert-amber">890 PPM</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 89%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">SURFACE TEMP</span>
+                  <span class="stat-value frost-cyan">-14°C</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 25%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">RADIATION FLUX</span>
+                  <span class="stat-value">4.2 mSv/h</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 42%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">AIRLOCK SEAL STATUS</span>
+                  <span class="stat-value safe-green">100% SEALED</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-green" style="width: 100%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Lore -->
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "We do not know who built the Silo. We only know the world outside is death, and the laws of the Silo keep us alive."
+              </blockquote>
+              <p class="lore-body">
+                The massive titanium blast door requires dual pneumatic authorization from Central Command and the Judicial Guild to initiate outer cycle purge. Cleaning suit protocols remain mandatory.
+              </p>
+            </div>
+
+            <!-- Tab 3: System Metrics -->
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Optical Sensor Array #01-#04</span><span class="status-badge ok">FUNCTIONAL</span></div>
+                <div class="sys-row"><span>Perimeter Pressure Differential</span><span class="sys-val">101.3 kPa</span></div>
+                <div class="sys-row"><span>Nitrogen Purge Reserve</span><span class="sys-val">98.4%</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: HOWLING WIND & STATIC CRACKLE
+              </div>
+              <button class="btn-jump-next" data-jump="1">DESCEND TO HABITATION ↓</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 1: RESIDENTIAL HABITATION -->
+        <article class="sector-card" id="card-sector-1" data-sector-index="1">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent amber"></span>
+                <span>SECTOR 02 // UPPER DECKS</span>
+              </div>
+              <div class="card-level-badge">-120m • L1–L4</div>
+            </div>
+            
+            <h2 class="card-title">RESIDENTIAL HABITATION</h2>
+            <p class="card-desc">
+              Stacked modular living pods, warm incandescent filament lighting, communal dining halls, nursery modules, and spiraling perimeter walkways.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">SOCIETAL ORDER</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">POPULATION</span>
+                  <span class="stat-value amber-glow">2,400 DENIZENS</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-amber" style="width: 78%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">O₂ ATMOSPHERE</span>
+                  <span class="stat-value safe-green">21.0% NOMINAL</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-green" style="width: 95%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">POWER DRAW</span>
+                  <span class="stat-value">1.2 MW</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 48%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">HABITAT MORALE</span>
+                  <span class="stat-value">94.2% OPTIMAL</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 94%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "Life thrives within steel and filament. Every family honors the Pact, and every child learns the stairs."
+              </blockquote>
+              <p class="lore-body">
+                Levels 1 through 4 house the Silo's administrative officials, medical suites, and upper residential pods. Foot traffic is organized along clockwise stairways to reduce congestion.
+              </p>
+            </div>
+
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Air Circulation Fans</span><span class="status-badge ok">1,450 RPM NOMINAL</span></div>
+                <div class="sys-row"><span>Filtration scrubbers</span><span class="sys-val">Grade-A Clean</span></div>
+                <div class="sys-row"><span>Greywater Reclamation</span><span class="sys-val">99.1% Efficacy</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: VENTILATION HUM & FOOTSTEPS
+              </div>
+              <button class="btn-jump-next" data-jump="2">DESCEND TO BIO-FARMS ↓</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 2: BIOSPHERIC AGRICULTURE -->
+        <article class="sector-card" id="card-sector-2" data-sector-index="2">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent green"></span>
+                <span>SECTOR 03 // MID-UPPER DECKS</span>
+              </div>
+              <div class="card-level-badge">-380m • L5–L10</div>
+            </div>
+            
+            <h2 class="card-title">BIOSPHERIC AGRICULTURE</h2>
+            <p class="card-desc">
+              Bioluminescent crop terraces, aeroponic food domes, automated ultrasonic misting systems, and artificial daylight simulation LED rings.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">HARVEST PROTOCOLS</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">CROP YIELD</span>
+                  <span class="stat-value safe-green">94% EFFICIENCY</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-green" style="width: 94%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">CHAMBER HUMIDITY</span>
+                  <span class="stat-value cyan-glow">78% OPTIMAL</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-cyan" style="width: 78%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">DAYLIGHT CYCLE</span>
+                  <span class="stat-value">SPECTRUM 5400K</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 82%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">DAILY CALORIC OUTPUT</span>
+                  <span class="stat-value">6.8M KCAL</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 91%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "Without the sun, the LED rings turn night into dawn, and mist feeds the crops that keep two thousand beating hearts alive."
+              </blockquote>
+              <p class="lore-body">
+                Hydroponic terraces produce genetically resilient heirloom grains, high-protein spirulina algae cultures, and vitamin-dense hydroponic legumes across 6 tiered decks.
+              </p>
+            </div>
+
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Nutrient Mist Injectors</span><span class="status-badge ok">CYCLE ACTIVE</span></div>
+                <div class="sys-row"><span>CO₂ Absorption Terraces</span><span class="sys-val">410 PPM Target</span></div>
+                <div class="sys-row"><span>Pollination Drone Swarms</span><span class="sys-val">48 Units Patrol</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: MIST SPRAYERS & TRICKLING WATER
+              </div>
+              <button class="btn-jump-next" data-jump="3">DESCEND TO DATA VAULTS ↓</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 3: DATA VAULTS & CENTRAL IT -->
+        <article class="sector-card" id="card-sector-3" data-sector-index="3">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent cyan"></span>
+                <span>SECTOR 04 // MID-LOWER DECKS</span>
+              </div>
+              <div class="card-level-badge">-750m • L11–L16</div>
+            </div>
+            
+            <h2 class="card-title">DATA VAULTS & CENTRAL IT</h2>
+            <p class="card-desc">
+              Sub-zero mainframe archives, glowing cyan server towers, security terminals containing classified records, and Judicial AI oversight modules.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">CLASSIFIED ARCHIVES</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">STORAGE CAPACITY</span>
+                  <span class="stat-value cyan-glow">88 PB ENCRYPTED</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-cyan" style="width: 88%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">SECURITY CLEARANCE</span>
+                  <span class="stat-value alert-red">TOP SECRET / LVL 5</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-red" style="width: 100%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">CRYO COOLING TEMP</span>
+                  <span class="stat-value frost-cyan">-5°C LIQUID NITROGEN</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 35%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">DATA BUS BANDWIDTH</span>
+                  <span class="stat-value">12.4 TB/s OPTIC</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 76%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "Knowledge before the Rebellions is forbidden. The legacy drives are sealed in cryo-safes; only the Judicial Server may query history."
+              </blockquote>
+              <p class="lore-body">
+                Central IT monitors sensor telemetry, broadcast channels, and floor-by-floor communication relays. Unauthorized memory storage devices (relics) incur immediate trial.
+              </p>
+            </div>
+
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Airgap Firewall Enclave</span><span class="status-badge ok">UNCOMPROMISED</span></div>
+                <div class="sys-row"><span>Optical Tape Robotic Carousels</span><span class="sys-val">Index 99.98%</span></div>
+                <div class="sys-row"><span>Judicial Relay Interconnect</span><span class="sys-val">ENCRYPTED // SHA-512</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: HIGH-FREQUENCY SERVER DRONE & RELAYS
+              </div>
+              <button class="btn-jump-next" data-jump="4">DESCEND TO HEAVY INDUSTRY ↓</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 4: HEAVY INDUSTRY & MANUFACTURING -->
+        <article class="sector-card" id="card-sector-4" data-sector-index="4">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent orange"></span>
+                <span>SECTOR 05 // LOWER DECKS</span>
+              </div>
+              <div class="card-level-badge">-1,100m • L17–L21</div>
+            </div>
+            
+            <h2 class="card-title">HEAVY INDUSTRY & MANUFACTURING</h2>
+            <p class="card-desc">
+              Industrial gantry cranes, fabrication foundries, steel maintenance platforms, hydraulic recycling chutes, and structural beam foundries.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">FOUNDRY GUILD</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">FABRICATION STATUS</span>
+                  <span class="stat-value orange-glow">ACTIVE CASTING</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-orange" style="width: 85%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">CRANE LOAD CAPACITY</span>
+                  <span class="stat-value">80 TONNES RATED</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-orange" style="width: 72%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">ACOUSTIC NOISE LEVEL</span>
+                  <span class="stat-value alert-amber">92 dB (EARPRO REQ.)</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 92%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">ALLOY RECYCLING QUOTA</span>
+                  <span class="stat-value safe-green">97.6% RECLAIM</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-green" style="width: 97%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "Steel wears down, bolts fatigue. Down here in the dark heat, Mechanical Guild keeps the marrow of the Silo from shattering."
+              </blockquote>
+              <p class="lore-body">
+                Every replacement screw, stair tread, and pipe segment is forged by hand from recycled scrap metal dropped down through the vertical disposal chute from upper levels.
+              </p>
+            </div>
+
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Gantry Crane #03 Overhaul</span><span class="status-badge ok">OPERATIONAL</span></div>
+                <div class="sys-row"><span>Smelting Crucible Temp</span><span class="sys-val">1,150°C Forge</span></div>
+                <div class="sys-row"><span>Hydraulic Pressure Manifold</span><span class="sys-val">320 Bar</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: HYDRAULIC THUMPS & METAL CLANGS
+              </div>
+              <button class="btn-jump-next" data-jump="5">DESCEND TO GEOTHERMAL CORE ↓</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 5: GEOTHERMAL REACTOR CORE -->
+        <article class="sector-card" id="card-sector-5" data-sector-index="5">
+          <div class="card-glass-panel">
+            <div class="card-header">
+              <div class="card-sector-tag">
+                <span class="tag-accent lava"></span>
+                <span>SECTOR 06 // BEDROCK FOUNDATION</span>
+              </div>
+              <div class="card-level-badge">-1,440m • L22–L26</div>
+            </div>
+            
+            <h2 class="card-title">GEOTHERMAL REACTOR CORE</h2>
+            <p class="card-desc">
+              Molten magma energy basin, colossal geothermal steam generation turbines, high-pressure heat exchangers, and seismic bedrock dampers.
+            </p>
+
+            <div class="card-tab-nav">
+              <button class="tab-btn active" data-tab="telemetry">TELEMETRY</button>
+              <button class="tab-btn" data-tab="lore">THE BEATING HEART</button>
+              <button class="tab-btn" data-tab="systems">SYSTEM METRICS</button>
+            </div>
+
+            <div class="tab-pane active" data-pane="telemetry">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">CORE TEMPERATURE</span>
+                  <span class="stat-value alert-red lava-pulse">240°C OPERATING</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-red" style="width: 96%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">GENERATION OUTPUT</span>
+                  <span class="stat-value amber-glow">4.8 GW THERMAL</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-amber" style="width: 88%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">MAGMA PRESSURE BASIN</span>
+                  <span class="stat-value">18.2 MPa</span>
+                  <div class="stat-bar"><div class="stat-bar-fill" style="width: 82%;"></div></div>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">BEDROCK SEISMIC DAMPERS</span>
+                  <span class="stat-value safe-green">99.8% STABILIZED</span>
+                  <div class="stat-bar"><div class="stat-bar-fill bg-green" style="width: 99%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" data-pane="lore">
+              <blockquote class="lore-quote">
+                "The generator cannot be turned off. If the steam valve jams or the rotor breaks, the Silo dies in darkness."
+              </blockquote>
+              <p class="lore-body">
+                Tapping the magma subterranean reservoir beneath the Silo floor, massive steam pipes power all 26 levels with electricity and clean thermal heat. Maintenance here is hot, hazardous, and vital.
+              </p>
+            </div>
+
+            <div class="tab-pane" data-pane="systems">
+              <div class="system-metric-list">
+                <div class="sys-row"><span>Steam Turbine #01-#03</span><span class="status-badge ok">3,600 RPM SYNCHRONOUS</span></div>
+                <div class="sys-row"><span>Bedrock Harmonic Dampeners</span><span class="sys-val">Active Absorption</span></div>
+                <div class="sys-row"><span>Emergency Bypass Flue</span><span class="sys-val">ARMED // READY</span></div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="audio-cue-tag">
+                <span class="audio-dot"></span> AUDIO: SUB-BASS VOLCANIC RUMBLE & TURBINE WHINE
+              </div>
+              <button class="btn-jump-next" data-jump="0">ASCEND TO SURFACE ↑</button>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- LAYER 5: Rapid Sector Jump Rail (Right Elevator Track) -->
+      <nav class="sector-jump-rail" id="jump-rail" aria-label="Elevator Sector Navigation">
+        <div class="rail-header">ELEVATOR RAIL</div>
+        <div class="rail-track">
+          <!-- Rail Active Cursor Pip that moves with scroll -->
+          <div class="rail-cursor" id="rail-cursor">
+            <span class="rail-cursor-beacon"></span>
+          </div>
+
+          <!-- Clickable Sector Pips -->
+          <button class="rail-pip active" data-sector="0" data-depth="0m" title="L0 • Surface Airlock (0m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L0 • SURFACE</span>
+          </button>
+
+          <button class="rail-pip" data-sector="1" data-depth="-120m" title="L1–L4 • Residential Habitation (-120m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L1-4 • RESIDENTIAL</span>
+          </button>
+
+          <button class="rail-pip" data-sector="2" data-depth="-380m" title="L5–L10 • Biospheric Agriculture (-380m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L5-10 • BIO-FARMS</span>
+          </button>
+
+          <button class="rail-pip" data-sector="3" data-depth="-750m" title="L11–L16 • Data Vaults & IT (-750m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L11-16 • SERVERS</span>
+          </button>
+
+          <button class="rail-pip" data-sector="4" data-depth="-1100m" title="L17–L21 • Heavy Industry (-1,100m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L17-21 • INDUSTRY</span>
+          </button>
+
+          <button class="rail-pip" data-sector="5" data-depth="-1440m" title="L22–L26 • Geothermal Core (-1,440m)">
+            <span class="pip-dot"></span>
+            <span class="pip-label">L22-26 • CORE</span>
+          </button>
+        </div>
+        <div class="rail-footer" id="rail-descent-percent">0% DESCENDED</div>
+      </nav>
+
+      <!-- LAYER 6: Viewport Camera Controls & View Mode Toggles -->
+      <aside class="camera-controls-widget" id="camera-controls" aria-label="Camera Controls">
+        <button id="btn-zoom-in" class="ctrl-btn" title="Zoom In (+)">＋</button>
+        <button id="btn-zoom-out" class="ctrl-btn" title="Zoom Out (-)">－</button>
+        <button id="btn-zoom-reset" class="ctrl-btn" title="Reset Viewport">⟲</button>
+        <div class="ctrl-divider"></div>
+        <button id="btn-orbit-toggle" class="ctrl-btn active" title="Toggle 360° Orbit Mode (O)">360°</button>
+        <button id="btn-orbit-snap" class="ctrl-btn" title="Snap to Front Facing (0°)">⊡</button>
+        <button id="btn-orbit-flip" class="ctrl-btn" title="Flip to Reverse Blueprint (180°)">⤢</button>
+        <div class="ctrl-divider"></div>
+        <button id="btn-grid-toggle" class="ctrl-btn active" title="Toggle Blueprint CAD Grid (G)">⊞</button>
+        <button id="btn-scanlines-toggle" class="ctrl-btn active" title="Toggle CRT Scanlines (C)">▥</button>
+      </aside>
+
+      <!-- Hotspot Inspection Modal Dialog -->
+      <div id="hotspot-modal" class="hotspot-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div class="modal-tag">BLUEPRINT INSPECTION // LORE RECORD</div>
+            <button id="modal-close-btn" class="modal-close" aria-label="Close Inspection">✕</button>
+          </div>
+          <h3 id="modal-title" class="modal-title">Sector Callout</h3>
+          <p id="modal-desc" class="modal-desc">Technical specification details...</p>
+          <div class="modal-telemetry-strip" id="modal-strip">
+            <span class="strip-item">SECURITY: ENCRYPTED</span>
+            <span class="strip-item">STATUS: VERIFIED</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FIXED BOTTOM STATUS DOCK -->
+  <footer class="hud-footer">
+    <div class="footer-left">
+      <div class="status-indicator-block">
+        <span class="beacon-pulse safe"></span>
+        <span class="status-name" id="footer-status-name">ATMOSPHERE: SEALED & PRESSURIZED</span>
+      </div>
+      <div class="footer-metric">
+        <span class="metric-lbl">PRESSURE:</span>
+        <span class="metric-num" id="footer-pressure">1.02 ATM</span>
+      </div>
+      <div class="footer-metric">
+        <span class="metric-lbl">GEIGER:</span>
+        <span class="metric-num" id="footer-geiger">0.12 µSv/h</span>
+      </div>
+      <div class="footer-metric">
+        <span class="metric-lbl">VENTILATION:</span>
+        <span class="metric-num" id="footer-vent">98.4% EFF</span>
+      </div>
+    </div>
+
+    <div class="footer-center">
+      <div class="scroll-instruction">
+        <span class="mouse-icon">🖱️</span>
+        <span class="scroll-hint">SCROLL TO DIVE 360° • DRAG TO ORBIT</span>
+        <span class="scroll-chevron">▼</span>
+      </div>
+    </div>
+
+    <div class="footer-right">
+      <span class="shortcut-tip">KEYS: <code>↑/↓</code> DIVE • <code>DRAG</code> 360° • <code>O</code> 360° MODE • <code>1-6</code> JUMP • <code>SPACE</code> PATROL</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
